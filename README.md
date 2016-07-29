@@ -1,4 +1,4 @@
-# urlhandlers-assembly-app
+# urlhandlers-assembly-app [![CircleCI](https://circleci.com/gh/ouspg/urlhandlers-assembly-app.svg?style=shield)](https://circleci.com/gh/ouspg/urlhandlers-assembly-app)
 
 ## Development
 
