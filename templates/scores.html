@@ -1,0 +1,13 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Scores</title>
+  </head>
+  <body>
+    {% for team in teams %}
+      <div class="team">
+        Team {{ team.name }}: {{ team.user_agents }} user agents, {{ team.remote_addrs }} addresses
+      </div>
+    {% endfor %}
+  </body>
+</html>
