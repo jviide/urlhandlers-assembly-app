@@ -2,12 +2,11 @@
 <html>
   <head>
     <title>Scores</title>
+    <script src="static/js/scores.js"></script>
   </head>
   <body>
-    {% for team in teams %}
-      <div class="team">
-        Team {{ team.name }}: {{ team.user_agents }} user agents, {{ team.remote_addrs }} addresses
-      </div>
-    {% endfor %}
+    <script>
+      main(document.body, ["yellow", "blue", "red"], "/scores/api");
+    </script>
   </body>
 </html>

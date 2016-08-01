@@ -5,6 +5,7 @@ import hashlib
 
 import jinja2
 import webapp2
+from google.appengine.api import memcache
 from google.appengine.ext import ndb
 
 
@@ -85,35 +86,34 @@ class TeamPage(webapp2.RequestHandler):
         }))
 
 
+def scores(teams=["yellow", "blue", "red"]):
+    cache_key = _key("scores", *teams)
+
+    scores = memcache.get(cache_key)
+    if scores is None:
+        scores = {}
+        for team in teams:
+            scores[team] = {
+                "user_agents": count(team, "user_agent"),
+                "remote_addrs": count(team, "remote_addr")
+            }
+        memcache.add(cache_key, scores, 1)
+
+    return scores
+
+
 class ScorePage(webapp2.RequestHandler):
     def get(self):
-        names = ["yellow", "blue", "red"]
-
-        teams = []
-        for name in names:
-            teams.append({
-                "name": name,
-                "user_agents": count(name, "user_agent"),
-                "remote_addrs": count(name, "remote_addr")
-            })
-
         template = env.get_template("scores.html")
         self.response.write(template.render({
-            "teams": teams
+            "initial_scores": json.dumps(scores())
         }))
 
 
 class ScoreAPI(webapp2.RequestHandler):
     def get(self):
-        scores = {}
-        for team in ["yellow", "blue", "red"]:
-            scores[team] = {
-                "user_agents": count(team, "user_agent"),
-                "remote_addrs": count(team, "remote_addr")
-            }
-
         self.response.headers["Content-Type"] = "application/json"
-        self.response.write(json.dumps(scores))
+        self.response.write(json.dumps(scores()))
 
 
 routes = [
