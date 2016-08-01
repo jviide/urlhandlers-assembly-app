@@ -48,20 +48,27 @@ def mark(team, attr, value):
     shards = CounterConfig.get_or_insert("main").shards
     shard = random.randint(0, shards - 1)
 
+    memcache.incr(_key("count", team, attr))
+
     counter = CounterShard.get_or_insert(_shard_key(team, attr, shard))
     counter.count += 1
     counter.put()
 
 
 def count(team, attr):
-    shards = CounterConfig.get_or_insert("main").shards
-    keys = [ndb.Key(CounterShard, _shard_key(team, attr, shard)) for shard in xrange(shards)]
+    cache_key = _key("count", team, attr)
 
-    count = 0
-    for counter in ndb.get_multi(keys):
-        if counter is None:
-            continue
-        count += counter.count
+    count = memcache.get(cache_key)
+    if count is None:
+        shards = CounterConfig.get_or_insert("main").shards
+        keys = [ndb.Key(CounterShard, _shard_key(team, attr, shard)) for shard in xrange(shards)]
+
+        count = 0
+        for counter in ndb.get_multi(keys):
+            if counter is None:
+                continue
+            count += counter.count
+        memcache.add(cache_key, count, 15)
     return count
 
 
@@ -88,27 +95,19 @@ class TeamPage(webapp2.RequestHandler):
 
 
 def scores(teams=["yellow", "blue", "red"]):
-    cache_key = _key("scores", *teams)
-
-    scores = memcache.get(cache_key)
-    if scores is None:
-        scores = {}
-        for team in teams:
-            scores[team] = {
-                "user_agents": count(team, "user_agent"),
-                "remote_addrs": count(team, "remote_addr")
-            }
-        memcache.add(cache_key, scores, 1)
-
+    scores = {}
+    for team in teams:
+        scores[team] = {
+            "user_agents": count(team, "user_agent"),
+            "remote_addrs": count(team, "remote_addr")
+        }
     return scores
 
 
 class ScorePage(webapp2.RequestHandler):
     def get(self):
         template = env.get_template("scores.html")
-        self.response.write(template.render({
-            "initial_scores": json.dumps(scores())
-        }))
+        self.response.write(template.render({}))
 
 
 class ScoreAPI(webapp2.RequestHandler):
