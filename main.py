@@ -16,7 +16,7 @@ env = jinja2.Environment(
 
 
 class CounterConfig(ndb.Model):
-    shards = ndb.IntegerProperty(default=50, indexed=False)
+    shards = ndb.IntegerProperty(default=25, indexed=False)
 
 
 class CounterShard(ndb.Model):
@@ -55,21 +55,24 @@ def mark(team, attr, value):
     counter.put()
 
 
-def count(team, attr):
+@ndb.tasklet
+def count_tasklet(team, attr, shards):
     cache_key = _key("count", team, attr)
 
     count = memcache.get(cache_key)
     if count is None:
-        shards = CounterConfig.get_or_insert("main").shards
         keys = [ndb.Key(CounterShard, _shard_key(team, attr, shard)) for shard in xrange(shards)]
 
+        results = yield ndb.get_multi_async(keys)
+
         count = 0
-        for counter in ndb.get_multi(keys):
+        for counter in results:
             if counter is None:
                 continue
             count += counter.count
         memcache.add(cache_key, count, 15)
-    return count
+
+    raise ndb.Return((team, attr, count))
 
 
 class TeamPage(webapp2.RequestHandler):
@@ -78,10 +81,10 @@ class TeamPage(webapp2.RequestHandler):
         template = env.get_template("team.html")
 
         user_agent = self.request.headers.get("user-agent", "")
-        mark(team, "user_agent", user_agent)
+        mark(team, "user_agents", user_agent)
 
         remote_addr = self.request.remote_addr
-        mark(team, "remote_addr", remote_addr)
+        mark(team, "remote_addrs", remote_addr)
 
         self.response.write(template.render({
             "team": team.capitalize(),
@@ -94,14 +97,22 @@ class TeamPage(webapp2.RequestHandler):
         }))
 
 
+@ndb.synctasklet
 def scores(teams=["yellow", "blue", "red"]):
-    scores = {}
+    config = yield CounterConfig.get_or_insert_async("main")
+
+    tasklets = []
     for team in teams:
-        scores[team] = {
-            "user_agents": count(team, "user_agent"),
-            "remote_addrs": count(team, "remote_addr")
-        }
-    return scores
+        tasklets.extend([
+            count_tasklet(team, "user_agents", config.shards),
+            count_tasklet(team, "remote_addrs", config.shards)
+        ])
+    results = yield tasklets
+
+    scores = {}
+    for team, attr, count in results:
+        scores.setdefault(team, {}).setdefault(attr, count)
+    raise ndb.Return(scores)
 
 
 class ScorePage(webapp2.RequestHandler):
