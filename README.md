@@ -23,5 +23,5 @@ This starts the local development server on `localhost:8080`.
 To deploy the app to Google Cloud Platform project `my-project` run the following command:
 
 ```sh
-$ appcfg.py -A my-project update .
+$ appcfg.py -A my-project -V v1 update .
 ```
