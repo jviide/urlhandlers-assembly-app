@@ -1,4 +1,5 @@
 import os
+import json
 import random
 import hashlib
 
@@ -102,8 +103,22 @@ class ScorePage(webapp2.RequestHandler):
         }))
 
 
+class ScoreAPI(webapp2.RequestHandler):
+    def get(self):
+        scores = {}
+        for team in ["yellow", "blue", "red"]:
+            scores[team] = {
+                "user_agents": count(team, "user_agent"),
+                "remote_addrs": count(team, "remote_addr")
+            }
+
+        self.response.headers["Content-Type"] = "application/json"
+        self.response.write(json.dumps(scores))
+
+
 routes = [
     ("(?i)/(yellow|blue|red)", TeamPage),
+    ("(?i)/scores/api", ScoreAPI),
     ("(?i)/scores", ScorePage)
 ]
 
