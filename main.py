@@ -70,9 +70,10 @@ class TeamPage(webapp2.RequestHandler):
         team = team.lower()
         template = env.get_template("team.html")
 
-        user_agent = self.request.headers.get("user-agent", None)
-        remote_addr = self.request.remote_addr
+        user_agent = self.request.headers.get("user-agent", "")
         mark(team, "user_agent", user_agent)
+
+        remote_addr = self.request.remote_addr
         mark(team, "remote_addr", remote_addr)
 
         self.response.write(template.render({
