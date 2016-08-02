@@ -90,10 +90,10 @@ class TeamPage(webapp2.RequestHandler):
             "team": team.capitalize(),
 
             "image": {
-                "red": "static/red.png",
-                "blue": "static/blue.png",
-                "yellow": "static/yellow.png"
-            }.get(team, "static/unknown.png")
+                "red": "/static/red.png",
+                "blue": "/static/blue.png",
+                "yellow": "/static/yellow.png"
+            }.get(team, "/static/unknown.png")
         }))
 
 
@@ -128,9 +128,9 @@ class ScoreAPI(webapp2.RequestHandler):
 
 
 routes = [
-    ("(?i)/(yellow|blue|red)", TeamPage),
-    ("(?i)/scores/api", ScoreAPI),
-    ("(?i)/scores", ScorePage)
+    ("(?i)/(yellow|blue|red)/?", TeamPage),
+    ("(?i)/scores/api/?", ScoreAPI),
+    ("(?i)/scores/?", ScorePage)
 ]
 
 
