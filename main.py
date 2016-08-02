@@ -59,8 +59,9 @@ def mark(team, attr, value):
 @ndb.tasklet
 def count_tasklet(team, attr, shards):
     cache_key = _key("count", team, attr)
+    context = ndb.get_context()
 
-    count = memcache.get(cache_key)
+    count = yield context.memcache_get(cache_key)
     if count is None:
         keys = [ndb.Key(CounterShard, _shard_key(team, attr, shard)) for shard in xrange(shards)]
 
@@ -71,7 +72,7 @@ def count_tasklet(team, attr, shards):
             if counter is None:
                 continue
             count += counter.count
-        memcache.add(cache_key, count, 15)
+        yield context.memcache_add(cache_key, count, 15)
 
     raise ndb.Return((team, attr, count))
 
