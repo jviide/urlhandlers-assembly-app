@@ -3,8 +3,100 @@
   <head>
     <title>Scores</title>
     <script src="/static/js/scores.js"></script>
+    <style type="text/css">
+      html, body {
+        position: relative;
+        border: none;
+        padding: 0;
+        margin: 0;
+        height: 100%;
+      }
+
+      body {
+        background: linear-gradient(#d0e0e0, white 80%, #d0e0e0 80%);
+      }
+
+      .strip {
+        position: relative;
+        top: 20%;
+        height: 60%;
+        padding: 0 15%;
+      }
+
+      .area {
+        position: relative;
+        display: inline-block;
+        height: 100%;
+        width: 27%;
+        margin: 0 3%;
+      }
+
+      .leader {
+        position: absolute;
+        bottom: -25px;
+        left: 0;
+        right: 40%;
+        height: 100%;
+        background-repeat: no-repeat;
+        background-size: contain;
+        background-position: center bottom;
+      }
+
+      .area.yellow .leader {
+        background-image: url("/static/yellow.png");
+      }
+
+      .area.blue .leader {
+        background-image: url("/static/blue.png");
+        left: 0%;
+      }
+
+      .area.red .leader {
+        background-image: url("/static/red.png");
+      }
+
+      .area .histogram {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        right: 0;
+        height: 0%;
+        min-height: 2px;
+        margin: 0;
+        transition-property: height;
+        transition-duration: 0.8s;
+
+      }
+
+      .area.red .histogram {
+        background: #53140A;
+      }
+
+      .area.blue .histogram {
+        background: #001152;
+      }
+
+      .area.yellow .histogram {
+        background: #7c7d00;
+      }
+    </style>
   </head>
   <body>
+    <div class="strip">
+      <div class="area yellow">
+        <div class="histogram" id="yellow"></div>
+        <div class="leader"></div>
+      </div>
+      <div class="area blue">
+        <div class="histogram" id="blue"></div>
+        <div class="leader"></div>
+      </div>
+      <div class="area red">
+        <div class="histogram" id="red"></div>
+        <div class="leader"></div>
+      </div>
+    </div>
+
     <script>
       main(document.body, ["yellow", "blue", "red"], "/scores/api");
     </script>
