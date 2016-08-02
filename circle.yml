@@ -10,4 +10,4 @@ deployment:
       - sudo "$(which gcloud)" --quiet components update
       - echo "${GAE_SERVICE_KEY}" | base64 --decode > "${HOME}/gae-service-key.json"
       - gcloud auth activate-service-account "${GAE_SERVICE_ACCOUNT}" --key-file "${HOME}/gae-service-key.json"
-      - CLOUDSDK_CORE_PROJECT="${GAE_PROJECT}" gcloud --quiet app deploy --version "${CIRCLE_SHA1}" app.yaml
+      - CLOUDSDK_CORE_PROJECT="${GAE_PROJECT}" gcloud --quiet app deploy --version production app.yaml
