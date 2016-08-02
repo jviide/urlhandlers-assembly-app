@@ -39,21 +39,43 @@ def _shard_key(team, attr, shard):
     return _key(team, attr, str(shard))
 
 
-@ndb.transactional(xg=True)
-def mark(team, attr, value):
-    key_name = _key(team, attr, value)
-    if Hash.get_by_id(key_name) is not None:
+@ndb.tasklet
+def mark_tasklet(team, attr, value):
+    cache_key = _key("hash", team, attr, value)
+    context = ndb.get_context()
+
+    exists = yield context.memcache_get(cache_key)
+    if exists:
         return
-    Hash(key=ndb.Key(Hash, key_name)).put()
 
-    shards = CounterConfig.get_or_insert("main").shards
+    config = yield CounterConfig.get_or_insert_async("main")
+    yield [
+        context.memcache_add(cache_key, True),
+        _mark_tasklet(team, attr, value, config.shards)
+    ]
+
+
+@ndb.transactional_tasklet(xg=True)
+def _mark_tasklet(team, attr, value, shards):
+    key_name = _key(team, attr, value)
+
+    hash_entity = yield Hash.get_by_id_async(key_name)
+    if hash_entity is not None:
+        return
+
+    yield [
+        Hash(key=ndb.Key(Hash, key_name)).put_async(),
+        ndb.get_context().memcache_incr(_key("count", team, attr)),
+        _incr_tasklet(team, attr, shards)
+    ]
+
+
+@ndb.transactional_tasklet
+def _incr_tasklet(team, attr, shards):
     shard = random.randint(0, shards - 1)
-
-    memcache.incr(_key("count", team, attr))
-
-    counter = CounterShard.get_or_insert(_shard_key(team, attr, shard))
+    counter = yield CounterShard.get_or_insert_async(_shard_key(team, attr, shard))
     counter.count += 1
-    counter.put()
+    yield counter.put_async()
 
 
 @ndb.tasklet
@@ -64,7 +86,6 @@ def count_tasklet(team, attr, shards):
     count = yield context.memcache_get(cache_key)
     if count is None:
         keys = [ndb.Key(CounterShard, _shard_key(team, attr, shard)) for shard in xrange(shards)]
-
         results = yield ndb.get_multi_async(keys)
 
         count = 0
@@ -75,34 +96,6 @@ def count_tasklet(team, attr, shards):
         yield context.memcache_add(cache_key, count, 15)
 
     raise ndb.Return((team, attr, count))
-
-
-class TeamPage(webapp2.RequestHandler):
-    def get(self, team):
-        team = team.lower()
-        template = env.get_template("team.html")
-
-        user_agent = self.request.headers.get("user-agent", "")
-        mark(team, "user_agents", user_agent)
-
-        remote_addr = self.request.remote_addr
-        mark(team, "remote_addrs", remote_addr)
-
-        self.response.write(template.render({
-            "team": team.capitalize(),
-
-            "image": {
-                "red": "/static/redteam.png",
-                "blue": "/static/blueteam.png",
-                "yellow": "/static/yellowteam.png"
-            }.get(team, "/static/unknown.png"),
-
-            "color": jinja2.Markup({
-                "yellow": "#FFEF00",
-                "red": "#53140A",
-                "blue": "#0056B9"
-            }.get(team, "#777777"))
-        }))
 
 
 @ndb.synctasklet
@@ -121,6 +114,35 @@ def scores(teams=["yellow", "blue", "red"]):
     for team, attr, count in results:
         scores.setdefault(team, {}).setdefault(attr, count)
     raise ndb.Return(scores)
+
+
+class TeamPage(webapp2.RequestHandler):
+    @ndb.synctasklet
+    def get(self, team):
+        team = team.lower()
+        user_agent = self.request.headers.get("user-agent", "")
+        remote_addr = self.request.remote_addr
+        yield [
+            mark_tasklet(team, "user_agents", user_agent),
+            mark_tasklet(team, "remote_addrs", remote_addr)
+        ]
+
+        template = env.get_template("team.html")
+        self.response.write(template.render({
+            "team": team.capitalize(),
+
+            "image": {
+                "red": "/static/redteam.png",
+                "blue": "/static/blueteam.png",
+                "yellow": "/static/yellowteam.png"
+            }.get(team, "/static/unknown.png"),
+
+            "color": jinja2.Markup({
+                "yellow": "#FFEF00",
+                "red": "#53140A",
+                "blue": "#0056B9"
+            }.get(team, "#777777"))
+        }))
 
 
 class ScorePage(webapp2.RequestHandler):
