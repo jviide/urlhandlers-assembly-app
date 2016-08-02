@@ -90,10 +90,16 @@ class TeamPage(webapp2.RequestHandler):
             "team": team.capitalize(),
 
             "image": {
-                "red": "/static/red.png",
-                "blue": "/static/blue.png",
-                "yellow": "/static/yellow.png"
-            }.get(team, "/static/unknown.png")
+                "red": "/static/redteam.png",
+                "blue": "/static/blueteam.png",
+                "yellow": "/static/yellowteam.png"
+            }.get(team, "/static/unknown.png"),
+
+            "color": jinja2.Markup({
+                "yellow": "#FFEF00",
+                "red": "#53140A",
+                "blue": "#0056B9"
+            }.get(team, "#777777"))
         }))
 
 

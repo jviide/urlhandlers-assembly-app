@@ -4,10 +4,12 @@
     <title>Team {{ team }}</title>
     <style type="text/css">
       html, body {
+        position: relative;
         border: none;
         padding: 0;
         margin: 0;
         height: 100%;
+        background: {{ color }};
       }
 
       body {
@@ -16,21 +18,8 @@
         background-repeat: no-repeat;
         background-size: contain;
       }
-
-      #team {
-        margin: auto;
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 0;
-        bottom: 0;
-        height: 1em;
-        font-size: 10em;
-        text-align: center;
-      }
     </style>
   </head>
   <body>
-    <div id="team">Team {{ team }}!</div>
   </body>
 </html>
