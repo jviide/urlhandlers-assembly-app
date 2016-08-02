@@ -31,15 +31,27 @@ function main(parentElement, teams, apiPath) {
         });
     }
 
+    function scheduleFetch() {
+        setTimeout(fetchScores, 1000);
+    }
+
     function fetchScores() {
-        fetch(apiPath)
-            .then(function(response) {
-                return response.json();
-            })
-            .then(function(scores) {
-                updateScores(scores);
-                setTimeout(fetchScores, 1000);
-            });
+        var request = new XMLHttpRequest();
+        request.open("GET", apiPath);
+
+        request.timeout = 5000;
+
+        request.addEventListener("error", scheduleFetch, false);
+        request.addEventListener("timeout", scheduleFetch, false);
+        request.addEventListener("load", function() {
+            try {
+                updateScores(JSON.parse(request.response));
+            } finally {
+                scheduleFetch();
+            }
+        }, false);
+
+        request.send();
     }
 
     fetchScores();
