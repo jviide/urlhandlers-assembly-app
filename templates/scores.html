@@ -17,6 +17,7 @@
       }
 
       .strip {
+        display: flex;
         position: relative;
         top: 20%;
         height: 60%;
@@ -25,41 +26,21 @@
 
       .area {
         position: relative;
-        display: inline-block;
-        height: 100%;
-        width: 27%;
-        margin: 0 3%;
+        flex: 1;
       }
 
       .leader {
         position: absolute;
-        bottom: -25px;
-        left: 0;
-        right: 40%;
-        height: 100%;
-        background-repeat: no-repeat;
-        background-size: contain;
-        background-position: center bottom;
-      }
-
-      .area.yellow .leader {
-        background-image: url("/static/yellow.png");
-      }
-
-      .area.blue .leader {
-        background-image: url("/static/blue.png");
-        left: 0%;
-      }
-
-      .area.red .leader {
-        background-image: url("/static/red.png");
+        bottom: -30px;
+        right: 30px;
+        height: 70%;
       }
 
       .area .histogram {
         position: absolute;
         bottom: 0;
-        left: 50%;
-        right: 0;
+        left: 0;
+        right: 50%;
         height: 0%;
         min-height: 2px;
         margin: 0;
@@ -85,15 +66,15 @@
     <div class="strip">
       <div class="area yellow">
         <div class="histogram" id="yellow"></div>
-        <div class="leader"></div>
+        <img class="leader" src="/static/yellow.png"></img>
       </div>
       <div class="area blue">
         <div class="histogram" id="blue"></div>
-        <div class="leader"></div>
+        <img class="leader" src="/static/blue.png"></img>
       </div>
       <div class="area red">
         <div class="histogram" id="red"></div>
-        <div class="leader"></div>
+        <img class="leader" src="/static/red.png"></img>
       </div>
     </div>
 
