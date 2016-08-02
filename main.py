@@ -6,7 +6,6 @@ import hashlib
 
 import jinja2
 import webapp2
-from google.appengine.api import memcache
 from google.appengine.ext import ndb
 
 
