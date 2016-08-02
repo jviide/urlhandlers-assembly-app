@@ -1,5 +1,6 @@
 import os
 import json
+import base64
 import random
 import hashlib
 
@@ -30,8 +31,8 @@ class Hash(ndb.Model):
 def _key(*parts):
     hasher = hashlib.sha256()
     for part in parts:
-        hasher.update(part.encode("base64") + "\x00")
-    return hasher.hexdigest()
+        hasher.update(base64.b64encode(part) + "\x00")
+    return base64.b64encode(hasher.digest())
 
 
 def _shard_key(team, attr, shard):
