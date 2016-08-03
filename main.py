@@ -92,7 +92,7 @@ def count_tasklet(team, attr, shards):
             if counter is None:
                 continue
             count += counter.count
-        yield context.memcache_add(cache_key, count, 15)
+        yield context.memcache_add(cache_key, count, random.randint(30, 60))
 
     raise ndb.Return((team, attr, count))
 
