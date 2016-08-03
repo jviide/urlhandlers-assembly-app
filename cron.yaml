@@ -1,0 +1,4 @@
+cron:
+  - description: "recalculate and cache the scores"
+    url: /tasks/recalc_scores
+    schedule: every 1 minutes

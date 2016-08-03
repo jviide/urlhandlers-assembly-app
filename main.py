@@ -16,7 +16,7 @@ env = jinja2.Environment(
 
 
 class CounterConfig(ndb.Model):
-    shards = ndb.IntegerProperty(default=25, indexed=False)
+    shards = ndb.IntegerProperty(default=50, indexed=False)
 
 
 class CounterShard(ndb.Model):
@@ -39,6 +39,12 @@ def _shard_key(team, attr, shard):
 
 
 @ndb.tasklet
+def _shards():
+    config = yield CounterConfig.get_or_insert_async("main")
+    raise ndb.Return(config.shards)
+
+
+@ndb.tasklet
 def mark_tasklet(team, attr, value):
     cache_key = _key("hash", team, attr, value)
     context = ndb.get_context()
@@ -47,15 +53,14 @@ def mark_tasklet(team, attr, value):
     if exists:
         return
 
-    config = yield CounterConfig.get_or_insert_async("main")
     yield [
         context.memcache_add(cache_key, True),
-        _mark_tasklet(team, attr, value, config.shards)
+        _mark_tasklet(team, attr, value)
     ]
 
 
 @ndb.transactional_tasklet(xg=True)
-def _mark_tasklet(team, attr, value, shards):
+def _mark_tasklet(team, attr, value):
     key_name = _key(team, attr, value)
 
     hash_entity = yield Hash.get_by_id_async(key_name)
@@ -65,12 +70,13 @@ def _mark_tasklet(team, attr, value, shards):
     yield [
         Hash(key=ndb.Key(Hash, key_name)).put_async(),
         ndb.get_context().memcache_incr(_key("count", team, attr)),
-        _incr_tasklet(team, attr, shards)
+        _incr_tasklet(team, attr)
     ]
 
 
 @ndb.transactional_tasklet
-def _incr_tasklet(team, attr, shards):
+def _incr_tasklet(team, attr):
+    shards = yield _shards()
     shard = random.randint(0, shards - 1)
     counter = yield CounterShard.get_or_insert_async(_shard_key(team, attr, shard))
     counter.count += 1
@@ -78,34 +84,38 @@ def _incr_tasklet(team, attr, shards):
 
 
 @ndb.tasklet
-def count_tasklet(team, attr, shards):
+def count_tasklet(team, attr, force_recount=False):
     cache_key = _key("count", team, attr)
     context = ndb.get_context()
 
-    count = yield context.memcache_get(cache_key)
-    if count is None:
-        keys = [ndb.Key(CounterShard, _shard_key(team, attr, shard)) for shard in xrange(shards)]
-        results = yield ndb.get_multi_async(keys)
+    if not force_recount:
+        count = yield context.memcache_get(cache_key)
+        if count is not None:
+            raise ndb.Return((team, attr, count))
 
-        count = 0
-        for counter in results:
-            if counter is None:
-                continue
-            count += counter.count
-        yield context.memcache_add(cache_key, count, random.randint(30, 60))
+    shards = yield _shards()
+    keys = [ndb.Key(CounterShard, _shard_key(team, attr, shard)) for shard in xrange(shards)]
+    results = yield ndb.get_multi_async(keys)
 
+    count = 0
+    for counter in results:
+        if counter is None:
+            continue
+        count += counter.count
+
+    cache_key = _key("count", team, attr)
+    context = ndb.get_context()
+    yield context.memcache_set(cache_key, count, random.randint(90, 120))
     raise ndb.Return((team, attr, count))
 
 
 @ndb.synctasklet
-def scores(teams=["yellow", "blue", "red"]):
-    config = yield CounterConfig.get_or_insert_async("main")
-
+def scores(teams=["yellow", "blue", "red"], force_recount=False):
     tasklets = []
     for team in teams:
         tasklets.extend([
-            count_tasklet(team, "user_agents", config.shards),
-            count_tasklet(team, "remote_addrs", config.shards)
+            count_tasklet(team, "user_agents", force_recount),
+            count_tasklet(team, "remote_addrs", force_recount)
         ])
     results = yield tasklets
 
@@ -131,9 +141,9 @@ class TeamPage(webapp2.RequestHandler):
             "team": team.capitalize(),
 
             "image": {
-                "red": "/static/redteam.png",
+                "yellow": "/static/yellowteam.png",
                 "blue": "/static/blueteam.png",
-                "yellow": "/static/yellowteam.png"
+                "red": "/static/redteam.png"
             }.get(team, "/static/unknown.png"),
 
             "color": jinja2.Markup({
@@ -156,11 +166,18 @@ class ScoreAPI(webapp2.RequestHandler):
         self.response.write(json.dumps(scores()))
 
 
-routes = [
+class RecalcTask(webapp2.RequestHandler):
+    def get(self):
+        scores(force_recount=True)
+
+
+app = webapp2.WSGIApplication(routes=[
     ("(?i)/(yellow|blue|red)/?", TeamPage),
     ("(?i)/scores/api/?", ScoreAPI),
     ("(?i)/scores/?", ScorePage)
-]
+])
 
 
-app = webapp2.WSGIApplication(routes=routes)
+tasks = webapp2.WSGIApplication(routes=[
+    ("/tasks/recalc_scores", RecalcTask)
+])
