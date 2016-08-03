@@ -171,10 +171,17 @@ class RecalcTask(webapp2.RequestHandler):
         scores(force_recount=True)
 
 
+class MainPage(webapp2.RequestHandler):
+    def get(self):
+        template = env.get_template("index.html")
+        self.response.write(template.render({}))
+
+
 app = webapp2.WSGIApplication(routes=[
     ("(?i)/(yellow|blue|red)/?", TeamPage),
     ("(?i)/scores/api/?", ScoreAPI),
-    ("(?i)/scores/?", ScorePage)
+    ("(?i)/scores/?", ScorePage),
+    ("/", MainPage)
 ])
 
 
