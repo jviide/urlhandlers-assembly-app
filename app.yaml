@@ -3,7 +3,7 @@ api_version: 1
 threadsafe: true
 instance_class: F2
 automatic_scaling:
-  min_idle_instances: 2
+  min_idle_instances: 1
 
 libraries:
 - name: webapp2
