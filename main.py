@@ -40,8 +40,15 @@ def _shard_key(team, attr, shard):
 
 @ndb.tasklet
 def _shards():
-    config = yield CounterConfig.get_or_insert_async("main")
-    raise ndb.Return(config.shards)
+    cache_key = _key("shards")
+    context = ndb.get_context()
+
+    shards = yield context.memcache_get(cache_key)
+    if shards is None:
+        config = yield CounterConfig.get_or_insert_async("main")
+        shards = config.shards
+        yield context.memcache_add(cache_key, shards)
+    raise ndb.Return(shards)
 
 
 @ndb.tasklet
